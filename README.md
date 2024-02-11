@@ -33,16 +33,46 @@ So in this way Varitional Autoencoders are used for generating samples of input 
 
 | Neural Network | Number of CNN Layers | Number of Linear Layers | Activation Function       |
 |-----------|----------------------|-------------------------|---------------------------|
-| Encoder   | 2                    | 1                       |  LeakyReLU (0.01)    |
+| Encoder   | 2                    | 1                       |  ReLU     |
 | Decoder   | 2                    | 1                       | LeakyReLU (0.01 |
-
 
 
 ### Network Structure
 
-Refer to 
+Refer to [CVAE_example.py](https://github.com/FReakYdiVi/2nn1b/blob/main/CVAE_example.py) for model code and structure names as CVAE 
 
 
 ## Model Structure related to research paper 
 
+| Component   | Number of CNN Layers | Number of Linear Layers | Activation Functions Used |
+|-------------|----------------------|-------------------------|---------------------------|
+| Encoder1    | 2                    | 2                      | ReLu          |
+| Encoder2    | 0                    | 2                       | -          |
+| Decoder     | 2                    | 1                       | LeakyRelu          |
+
+### Network Structure
+
+Refer to [CVAE_example.py](https://github.com/FReakYdiVi/2nn1b/blob/main/CVAE_example.py) for model code and structure names as CVAE_re
+
+If you want to know more about the structure , just read this [reaserch paper](https://arxiv.org/abs/2101.06685
+)
+
+## Usage Of Libararies
+### pre requistes
+1. pytorch , numpy ,matplot , pandas
+### Built In Library
+1. CVAE_example, CVAE_functions 
+
+## Blockers
+
+This was tough and new kind of problem for me as it was related to geneartive ai and through this journey i got to many insights towards how autoencoders work or particulary how Conditional variational autoencoders work at generating samples and there were many hurdles towards how to make this project a better performer so I am gonna share a few and how i solved it -
+
+1. the first problem was with **tuning of hyperparameters**
+and I was using **optuna** for this but i was not getting good results with the optuna so then i thought to drop the idea of hyperparameter tuning and move towards upgrading the model structure of given model and thought i would be more relelvant.
+
+2. I just modify the given model by adding leaky relu and it greatly reduces the overall loss of the model and secondly i also added condition to the encoder part as it was firstly not passing through encoder.
+
+3. I also modify the given structure by adding one more convulution layer and you can see this code in highlighted from in [CVAE_example.py](https://github.com/FReakYdiVi/2nn1b/blob/main/CVAE_example.py)
+
+4. I got know about the research paper then i tried to build the similar structure just to make **two encoders and decoder** so firstly it was hard to make such structure and also updating the functions according to the given structure  and i also changed the y_loss function to cross entropy which was more better than MSE but finally i made the similar model but it took too much time as it was very tough to make
 

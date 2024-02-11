@@ -124,95 +124,95 @@ In this Model there is addition of one more Convulution layer and this is just e
 to increase the number of input features 
 '''
 
-# class Encoder(nn.Module):
-#     def __init__(self,latent_dim):
-#         super(Encoder,self).__init__()
+class Encoder(nn.Module):
+    def __init__(self,latent_dim):
+        super(Encoder,self).__init__()
 
-#         self.conv1=nn.Conv2d(2,16,kernel_size=[8,2],bias=True)
-#         self.bn1=nn.BatchNorm2d(16) #applying batch normalization to avoid overfitting 
+        self.conv1=nn.Conv2d(2,16,kernel_size=[8,2],bias=True)
+        self.bn1=nn.BatchNorm2d(16) #applying batch normalization to avoid overfitting 
         
-#         self.conv2=nn.Conv2d(16,32,kernel_size=[8,1],bias=True)
-#         self.bn2=nn.BatchNorm2d(32)
+        self.conv2=nn.Conv2d(16,32,kernel_size=[8,1],bias=True)
+        self.bn2=nn.BatchNorm2d(32)
 
-#         # this is one more addition to the existing network
-#         self.conv3=nn.Conv2d(32,64,kernel_size=[3,1],bias=True)
-#         self.bn3=nn.BatchNorm2d(64)
+        # this is one more addition to the existing network
+        self.conv3=nn.Conv2d(32,64,kernel_size=[3,1],bias=True)
+        self.bn3=nn.BatchNorm2d(64)
         
-#         self.fc1_mean=nn.Linear(64*34,latent_dim)
-#         self.fc2_logvar=nn.Linear(64*34,latent_dim)
+        self.fc1_mean=nn.Linear(64*34,latent_dim)
+        self.fc2_logvar=nn.Linear(64*34,latent_dim)
 
-#         self.leaky_relu=nn.LeakyReLU(0.01)
+        self.leaky_relu=nn.LeakyReLU(0.01)
 
-#     def forward(self,x,cond_data):
-#         #concatenating x and cond_data
-#         x=torch.cat([x,cond_data],dim=1)
-#         #passing through convulution network 
-#         x=self.leaky_relu(self.bn1(self.conv1(x)))
-#         x=self.leaky_relu(self.bn2(self.conv2(x)))
-#         x=self.leaky_relu(self.bn3(self.conv3(x)))
+    def forward(self,x,cond_data):
+        #concatenating x and cond_data
+        x=torch.cat([x,cond_data],dim=1)
+        #passing through convulution network 
+        x=self.leaky_relu(self.bn1(self.conv1(x)))
+        x=self.leaky_relu(self.bn2(self.conv2(x)))
+        x=self.leaky_relu(self.bn3(self.conv3(x)))
         
-#         #flatten x to pass through linear layer
-#         x = x.view(x.size(0), -1)
-#         #definig z_mean and z_logvar
-#         z_mean = self.fc1_mean(x)
-#         z_logvar = self.fc2_logvar(x)
+        #flatten x to pass through linear layer
+        x = x.view(x.size(0), -1)
+        #definig z_mean and z_logvar
+        z_mean = self.fc1_mean(x)
+        z_logvar = self.fc2_logvar(x)
 
-#         return z_mean,z_logvar
+        return z_mean,z_logvar
     
-# class Sampling(nn.Module):  #The same approach as reparametrization trick
-#     def __init__(self):
-#         super(Sampling, self).__init__()
+class Sampling(nn.Module):  #The same approach as reparametrization trick
+    def __init__(self):
+        super(Sampling, self).__init__()
 
-#     def forward(self, z_mean, z_logvar):
-#         batch_size, latent_dim = z_mean.size()
-#         epsilon = torch.randn(batch_size, latent_dim).to(z_mean.device)
-#         std = torch.exp(0.5 * z_logvar)
-#         z = z_mean + std * epsilon
-#         return z
+    def forward(self, z_mean, z_logvar):
+        batch_size, latent_dim = z_mean.size()
+        epsilon = torch.randn(batch_size, latent_dim).to(z_mean.device)
+        std = torch.exp(0.5 * z_logvar)
+        z = z_mean + std * epsilon
+        return z
     
 
-# class Decoder(nn.Module):
-#     def __init__(self, latent_dim):
-#         super(Decoder,self).__init__()
-#         #defining layers 
-#         self.fc1=nn.LazyLinear(64*34)
-#         self.conv_transpose1=nn.ConvTranspose2d(64,32,kernel_size=[3,1],bias=True)
-#         self.bn1=nn.BatchNorm2d(32)
+class Decoder(nn.Module):
+    def __init__(self, latent_dim):
+        super(Decoder,self).__init__()
+        #defining layers 
+        self.fc1=nn.LazyLinear(64*34)
+        self.conv_transpose1=nn.ConvTranspose2d(64,32,kernel_size=[3,1],bias=True)
+        self.bn1=nn.BatchNorm2d(32)
         
-#         self.conv_transpose2=nn.ConvTranspose2d(32,16,kernel_size=[8,1],bias=True)
-#         self.bn2=nn.BatchNorm2d(16)
+        self.conv_transpose2=nn.ConvTranspose2d(32,16,kernel_size=[8,1],bias=True)
+        self.bn2=nn.BatchNorm2d(16)
        
-#         self.conv_transpose3=nn.ConvTranspose2d(16,1,kernel_size=[8,2],bias=True)
-#         self.relu=nn.LeakyReLU(0.01)
+        self.conv_transpose3=nn.ConvTranspose2d(16,1,kernel_size=[8,2],bias=True)
+        self.relu=nn.LeakyReLU(0.01)
 
-#     def forward(self, z, cond):
-#         x = torch.cat([z, cond], dim=1)
-#         x = F.relu(self.fc1(x))
-#         batch_size, latent_dim = z.size()
+    def forward(self, z, cond):
+        x = torch.cat([z, cond], dim=1)
+        x = F.relu(self.fc1(x))
+        batch_size, latent_dim = z.size()
         
-#         x = torch.reshape(x, (batch_size, 64, 34, 1))  # Reshape to (batch_size, channels, height, width)
+        x = torch.reshape(x, (batch_size, 64, 34, 1))  # Reshape to (batch_size, channels, height, width)
         
-#         x=self.bn1(self.conv_transpose1(x))
-#         x=self.bn2(self.conv_transpose2(x))
-#         x=self.conv_transpose3(x)
+        x=self.bn1(self.conv_transpose1(x))
+        x=self.bn2(self.conv_transpose2(x))
+        x=self.conv_transpose3(x)
         
-#         x = self.relu(x)
-#         return x
+        x = self.relu(x)
+        return x
     
 
-# class CVAE_ex(nn.Module):
-#     def __init__(self,latent_dim):
-#         super(CVAE_ex, self).__init__()
+class CVAE_ex(nn.Module):
+    def __init__(self,latent_dim):
+        super(CVAE_ex, self).__init__()
         
-#         self.encoder = Encoder(latent_dim)
-#         self.sampling = Sampling()
-#         self.decoder = Decoder(latent_dim)
+        self.encoder = Encoder(latent_dim)
+        self.sampling = Sampling()
+        self.decoder = Decoder(latent_dim)
 
-#     def forward(self, x, cond_data,cond):
-#         z_mean, z_logvar = self.encoder(x,cond_data)
-#         z = self.sampling(z_mean, z_logvar)
-#         x_recon = self.decoder(z, cond)
-#         return x_recon, z_mean, z_logvar
+    def forward(self, x, cond_data,cond):
+        z_mean, z_logvar = self.encoder(x,cond_data)
+        z = self.sampling(z_mean, z_logvar)
+        x_recon = self.decoder(z, cond)
+        return x_recon, z_mean, z_logvar
 
 '''
 This model is based on reasearch paper included in README
