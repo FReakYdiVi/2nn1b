@@ -25,6 +25,9 @@ drawn from these distributions and fed into the decoder,
 therefore adding an element of variation into the process.
 So in this way Varitional Autoencoders are used for generating samples of input which are similar to the given input(x) and **Conditional Autoencoder** is one step up in which we also add a condition that is to be fulfilled and this condition is passes through both encoder and decoder
 
+THERE ARE MANY RESULTS THAT I HAD GOT BUT I HAD INCLUDED VERY FEW BEST RESULTS ONLY
+
+
 
 
 # Referrals 
