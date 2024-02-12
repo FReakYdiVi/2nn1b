@@ -124,9 +124,9 @@ In this Model there is addition of one more Convulution layer and this is just e
 to increase the number of input features 
 '''
 
-class Encoder(nn.Module):
+class Encoder_ex(nn.Module):
     def __init__(self,latent_dim):
-        super(Encoder,self).__init__()
+        super(Encoder_ex,self).__init__()
 
         self.conv1=nn.Conv2d(2,16,kernel_size=[8,2],bias=True)
         self.bn1=nn.BatchNorm2d(16) #applying batch normalization to avoid overfitting 
@@ -141,15 +141,15 @@ class Encoder(nn.Module):
         self.fc1_mean=nn.Linear(64*34,latent_dim)
         self.fc2_logvar=nn.Linear(64*34,latent_dim)
 
-        self.leaky_relu=nn.LeakyReLU(0.01)
+        
 
     def forward(self,x,cond_data):
         #concatenating x and cond_data
         x=torch.cat([x,cond_data],dim=1)
         #passing through convulution network 
-        x=self.leaky_relu(self.bn1(self.conv1(x)))
-        x=self.leaky_relu(self.bn2(self.conv2(x)))
-        x=self.leaky_relu(self.bn3(self.conv3(x)))
+        x=F.relu(self.bn1(self.conv1(x)))
+        x=F.relu(self.bn2(self.conv2(x)))
+        x=F.relu(self.bn3(self.conv3(x)))
         
         #flatten x to pass through linear layer
         x = x.view(x.size(0), -1)
@@ -159,9 +159,9 @@ class Encoder(nn.Module):
 
         return z_mean,z_logvar
     
-class Sampling(nn.Module):  #The same approach as reparametrization trick
+class Sampling_ex(nn.Module):  #The same approach as reparametrization trick
     def __init__(self):
-        super(Sampling, self).__init__()
+        super(Sampling_ex, self).__init__()
 
     def forward(self, z_mean, z_logvar):
         batch_size, latent_dim = z_mean.size()
@@ -171,9 +171,9 @@ class Sampling(nn.Module):  #The same approach as reparametrization trick
         return z
     
 
-class Decoder(nn.Module):
+class Decoder_ex(nn.Module):
     def __init__(self, latent_dim):
-        super(Decoder,self).__init__()
+        super(Decoder_ex,self).__init__()
         #defining layers 
         self.fc1=nn.LazyLinear(64*34)
         self.conv_transpose1=nn.ConvTranspose2d(64,32,kernel_size=[3,1],bias=True)
@@ -204,9 +204,9 @@ class CVAE_ex(nn.Module):
     def __init__(self,latent_dim):
         super(CVAE_ex, self).__init__()
         
-        self.encoder = Encoder(latent_dim)
-        self.sampling = Sampling()
-        self.decoder = Decoder(latent_dim)
+        self.encoder = Encoder_ex(latent_dim)
+        self.sampling = Sampling_ex()
+        self.decoder = Decoder_ex(latent_dim)
 
     def forward(self, x, cond_data,cond):
         z_mean, z_logvar = self.encoder(x,cond_data)
