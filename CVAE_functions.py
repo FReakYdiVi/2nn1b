@@ -68,7 +68,130 @@ def loss_function(recon_x, x, cond_data, mu, logvar, beta, wx, wy, fun_list):
     return total_loss, KLD, x_loss, y_loss
 
 
+def train_cvae_br(cvae, train_loader, optimizer, beta, wx, wy, epoch, fun_list, step_to_print=1):
+    cvae.train()
+    train_loss = 0.0
+    KLD_loss = 0.0
+    recon_loss = 0.0
+    cond_loss = 0.0
 
+    for batch_idx, (data, cond_data) in enumerate(train_loader):
+        Nw = data.size(-2)
+        cond_data = torch.reshape(cond_data, (len(cond_data), Nw * len(fun_list)))
+        if torch.backends.mps.is_available():
+            cond_data = cond_data.to(torch.device('mps'))
+            data = data.to(torch.device('mps'))
+        # if torch.cuda.is_available():
+        #     cond_data = cond_data.cuda()
+        #     data = data.cuda()
+
+        # ===================forward=====================
+        recon_data, z_mean, z_logvar = cvae(data, cond_data)
+        loss, loss_KDL, loss_x, loss_y = loss_function(recon_data, data, cond_data, z_mean, z_logvar, beta, wx, wy,
+                                                       fun_list)
+        train_loss += loss.item()
+        KLD_loss += loss_KDL.item()
+        recon_loss += loss_x.item()
+        cond_loss += loss_y.item()
+        # ===================backward=====================
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+    train_loss /= len(train_loader)
+    KLD_loss /= len(train_loader)
+    recon_loss /= len(train_loader)
+    cond_loss /= len(train_loader)
+
+    result_dict = {
+        "epoch": epoch,
+        "average_loss": train_loss,
+        "KLD_loss": KLD_loss,
+        "x_loss": recon_loss,
+        "y_loss": cond_loss
+    }
+
+    if epoch % step_to_print == 0:
+        print('Train Epoch {}: Average Loss: {:.6f}, KDL: {:3f}, x_loss: {:3f}, y_loss: {:3f}'.format(epoch, train_loss,
+                                                                                                    KLD_loss,
+                                                                                                    recon_loss, cond_loss))
+
+    return result_dict
+    
+    
+
+def test_cvae_br(cvae, test_loader, beta, wx, wy,fun_list):
+    cvae.eval()
+    test_loss = 0.0
+
+    with torch.no_grad():
+        
+        for batch_idx, (data, cond_data) in enumerate(test_loader):
+            Nw = data.size(-2)
+            cond_data =  torch.reshape(cond_data, (len(cond_data), Nw* len(fun_list)))
+            # if torch.cuda.is_available():
+            #     cond_data =  cond_data.cuda()
+            #     data = data.cuda()
+            #     cond_data = cond_data.cuda()
+            if torch.backends.mps.is_available():
+                cond_data = cond_data.to(torch.device('mps'))
+                data = data.to(torch.device('mps'))
+
+            recon_data, z_mean, z_logvar = cvae(data, cond_data)
+
+            loss,_,_,_ = loss_function(recon_data, data, cond_data, z_mean, z_logvar, beta, wx, wy, fun_list)
+
+            test_loss += loss.item()
+
+    test_loss /= len(test_loader)
+    print('Test Loss: {:.6f}'.format(test_loss))
+    return test_loss
+    
+    
+
+    
+def generate_samples_br(cvae, num_samples, given_y, input_shape, zmult = 1):
+    
+    cvae.eval()
+    samples = []
+    givens = []
+    
+    
+    with torch.no_grad():
+        for _ in range(num_samples):
+            # Generate random latent vector
+            z_rand = (torch.randn(*input_shape)*zmult)
+            # if torch.cuda.is_available():
+            #     z_rand = z_rand.cuda()
+            if torch.backends.mps.is_available():
+                z_rand = z_rand.to(torch.device('mps'))
+                
+            num_args = cvae.encoder.forward.__code__.co_argcount
+            if num_args > 2 :
+                z = cvae.sampling(*cvae.encoder(z_rand.unsqueeze(0), given_y))
+            else: 
+                z = cvae.sampling(*cvae.encoder(z_rand.unsqueeze(0)))
+            # Another way to generate random latent vector
+            #z = torch.randn(1, latent_dim).cuda()
+            
+            # Set conditional data as one of the given y 
+            # Generate sample from decoder under given_y
+            sample = cvae.decoder(z, given_y)
+            samples.append(sample)
+            givens.append(given_y)
+
+    
+    samples = torch.cat(samples, dim=0)   
+    givens = torch.cat(givens, dim=0) 
+    return samples, givens
+
+
+
+
+
+'''
+These functions are defined for models that are passing condition both through Encoder and Decoder 
+'''
 
 def train_cvae(cvae, train_loader, optimizer, beta, wx, wy, epoch, fun_list, step_to_print=1):
     cvae.train()
@@ -97,11 +220,11 @@ def train_cvae(cvae, train_loader, optimizer, beta, wx, wy, epoch, fun_list, ste
         recon_loss += loss_x.item()
         cond_loss += loss_y.item()
         # ===================backward=====================
-        #use optimizer to optimize losses to minimise
+        #optimizer to optimize losses to minimise
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
+    ##adding up the loss 
     train_loss /= len(train_loader)
     KLD_loss /= len(train_loader)
     recon_loss /= len(train_loader)
@@ -241,9 +364,9 @@ def loss_function_re(recon_x, x, cond_data, mu1, logvar1, mu2, logvar2, beta, wx
         recon_cond_data = recon_cond_data.to(torch.device('mps'))
 
     #now cross entropy loss is used to reconstruction for y_loss
-    cross_entropy_loss=nn.CrossEntropyLoss()
+    
 
-    y_loss = cross_entropy_loss(cond_data,recon_cond_data)
+    y_loss = recon_loss_fn(cond_data,recon_cond_data)
 
     #calculating total loss  
     total_loss = (beta * KLD + wx * x_loss + wy * y_loss).mean()
@@ -285,12 +408,12 @@ def train_cvae_re(cvae, train_loader, optimizer, beta, wx, wy, epoch, fun_list, 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
+    ## adding up the loss 
     train_loss /= len(train_loader)
     KLD_loss /= len(train_loader)
     recon_loss /= len(train_loader)
     cond_loss /= len(train_loader)
-
+    ## storing the losses in dictionary 
     result_dict = {
         "epoch": epoch,
         "average_loss": train_loss,
@@ -381,16 +504,18 @@ def generate_samples_re(cvae, num_samples, given_y, input_shape, zmult = 1):
 
 
 def plot_samples(x, y, num_samples , n_cols = 10, fig_size = 2): 
-    
+    # Truncate the samples to the desired number
     x = x[0:num_samples]
     y = y[0:num_samples]
+    # Calculate the number of rows needed for the grid
     n_rows = round(len(x)/n_cols)
-    
+    # Create subplots with the specified number of columns and rows
     plt.rcdefaults()
     f, axarr = plt.subplots(n_rows, n_cols, figsize=(1.25*n_cols*fig_size, n_rows*fig_size))
 
-     
+     # Iterate over each subplot
     for j, ax in enumerate(axarr.flat):
+        # Extract x and y data for the current sample
         x0 = x[j,0,:,0].cpu().detach().numpy().flatten()
         x1 = x[j,0,:,1].cpu().detach().numpy().flatten()
         y0 = y[j,0,:,0].cpu().detach().numpy().flatten()
@@ -398,36 +523,37 @@ def plot_samples(x, y, num_samples , n_cols = 10, fig_size = 2):
         
         
         #y_gen = x0*x1
-        
+         # Plot the data
         ax.plot(range(50),x0)
         ax.plot(range(50),x1)
         #ax.plot(range(50),y_gen)
         ax.plot(range(50),y0, color = 'r', linestyle = 'dotted')
         ax.plot(range(50),y1, color = 'b', linestyle = 'dotted') 
         
+         # Set axis ticks to empty
         ax.set_xticks([])
         ax.set_yticks([])
         
-
+# Adjust spacing between subplots
     plt.subplots_adjust(wspace=0.2, hspace=0.2)
     plt.show() 
     
     
 
 def plot_samples_stacked(x_given, x, y, fun_list, n_cols = 4, fig_size = 3): 
-   
+   # Set default plotting parameters
     plt.rcdefaults()
-    
+    # Determine the number of X and Y samples
     x_num = x.size(-1)
     y_num = y.size(-1)
     n_cols = x_num + y_num 
     
-    
+    # Create subplots with the specified number of columns
     f, axs = plt.subplots(1, n_cols, figsize=(1.25*n_cols*fig_size, fig_size))
      
-    
+    # Iterate over each sample
     for j in range(len(x)):
-        
+        # Plot each X sample
         for i in range(x_num + y_num):
             if i < x_num :
                 x_i = x[j,0,:,i].cpu().detach().numpy().flatten()
@@ -448,9 +574,9 @@ def plot_samples_stacked(x_given, x, y, fun_list, n_cols = 4, fig_size = 3):
                 ygen = fun(x0,x1)
                 axs[i].plot(range(50),ygen, color = 'g', linestyle = 'dotted')
                     
-        
+            # Remove ticks from the axes
             axs[i].set(xticks=[], yticks=[])    
     
     
-    
+    # Show the plots
     plt.show()           

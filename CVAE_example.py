@@ -29,6 +29,86 @@ kernel_size2 = config["kernel_size2"]
 input_shape = (1, number_of_points, 2)
 dimInt = (number_of_points-kernel_size1[0]+1-kernel_size2[0]+1)
 
+class Encoder(nn.Module):
+    def __init__(self, latent_dim):
+        super(Encoder, self).__init__()
+        ##defining the convulution layers for the model
+        self.conv1 = nn.Conv2d(in_channels1, out_channels1, kernel_size=kernel_size1, bias=bias)
+        self.conv2 = nn.Conv2d(out_channels1, out_channels2, kernel_size=kernel_size2, bias=bias)
+        #passing through linear layer after flattening
+        self.fc1_mean = nn.Linear(out_channels2 * dimInt, latent_dim)
+        self.fc1_logvar = nn.Linear(out_channels2 * dimInt, latent_dim)
+
+    def forward(self, x):
+        #passing through activation function (relu)
+        x = F.relu(self.conv1(x))
+        
+        x = F.relu(self.conv2(x))
+        
+        x = x.view(x.size(0), -1)  # Flatten the feature map
+       
+       #passing through linear layer to produce the mean and log variance of the latent space and the output space is latent dim
+        z_mean = self.fc1_mean(x)
+        z_logvar = self.fc1_logvar(x)
+        
+        return z_mean, z_logvar
+
+# define the sampling layer
+class Sampling(nn.Module):  #The same approach as reparametrization trick
+    def __init__(self):
+        super(Sampling, self).__init__()
+
+    def forward(self, z_mean, z_logvar):
+        batch_size, latent_dim = z_mean.size()
+        #defining the stastical distribution
+        epsilon = torch.randn(batch_size, latent_dim).to(z_mean.device)
+        std = torch.exp(0.5 * z_logvar)
+        #to reparameterize the given latent space
+        z = z_mean + std * epsilon
+        return z
+
+# define the decoder network
+class Decoder(nn.Module):
+    def __init__(self, latent_dim):
+        super(Decoder, self).__init__()
+        ##defining the deconvulution layers to resize the input to its original shape 
+        self.fc1 = nn.LazyLinear(out_channels2 * dimInt)
+        self.conv_transpose1 = nn.ConvTranspose2d(out_channels2, out_channels1, kernel_size=kernel_size2, bias=bias)
+        self.conv_transpose2 = nn.ConvTranspose2d(out_channels1, in_channels1, kernel_size=kernel_size1, bias=bias)
+        # introduncing leaky relu as the activation function as it would also include the negative values 
+        self.leaky_relu = nn.LeakyReLU(0.01)
+
+    def forward(self, z, cond):
+        x = torch.cat([z, cond], dim=1)
+        x = F.relu(self.fc1(x))
+        batch_size, latent_dim = z.size()
+        
+        x = torch.reshape(x, (batch_size, out_channels2, dimInt, 1))  # Reshape to (batch_size, channels, height, width)
+        
+        x = self.conv_transpose1(x)
+        
+        x = self.conv_transpose2(x)
+        
+        x = self.leaky_relu(x)
+        return x
+
+# define the CVAE model
+class CVAE_br(nn.Module):
+    def __init__(self,latent_dim = 8):
+        super(CVAE_br, self).__init__()
+        
+        self.encoder = Encoder(latent_dim)
+        self.sampling = Sampling()
+        self.decoder = Decoder(latent_dim)
+
+    def forward(self, x, cond):
+        z_mean, z_logvar = self.encoder(x)
+        z = self.sampling(z_mean, z_logvar)
+        x_recon = self.decoder(z, cond)
+        return x_recon, z_mean, z_logvar
+
+
+
 '''
 there is modification in the given model because the main purpose behind making CVAE model is to make condition applied to both encoder
 and decoder but previously condition is passing only through  decoder not encoder so there should be concatenation od condition in the
@@ -44,6 +124,7 @@ class Encoder(nn.Module):
         #defining the convulution layers with input channels=2 as we had concatenated the x and cond_data along dim=1
         self.conv1 = nn.Conv2d(2, out_channels1, kernel_size=kernel_size1, bias=bias)
         self.conv2 = nn.Conv2d(out_channels1, out_channels2, kernel_size=kernel_size2, bias=bias)
+        #passing through linear layer after flattening
         self.fc1_mean = nn.Linear(out_channels2 * dimInt, latent_dim)
         self.fc1_logvar = nn.Linear(out_channels2 * dimInt, latent_dim)
         
@@ -60,6 +141,8 @@ class Encoder(nn.Module):
         x = x.view(x.size(0), -1)  # Flatten the feature map to pass through linear layer 
 
         #defining z_mean and z_logvar to pass through sampling layer
+        #passing through linear layer to produce the mean and log variance of the latent space and the output space is latent dim
+
         z_mean = self.fc1_mean(x)
         z_logvar = self.fc1_logvar(x)
         
@@ -72,7 +155,9 @@ class Sampling(nn.Module):  #The same approach as reparametrization trick
 
     def forward(self, z_mean, z_logvar):
         batch_size, latent_dim = z_mean.size()
+        ##defining the stastical distribution
         epsilon = torch.randn(batch_size, latent_dim).to(z_mean.device)
+        #to reparameterize the given latent space
         std = torch.exp(0.5 * z_logvar)
         z = z_mean + std * epsilon
         return z
@@ -83,7 +168,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
        #defining the linear layers to input output features of encoder part
         self.fc1 = nn.LazyLinear(out_channels2 * dimInt)
-        #defining the convulution transpose due to resizing the input to its original shape
+        #defining the deconvulution networks due to resizing the input to its original shape
         self.conv_transpose1 = nn.ConvTranspose2d(out_channels2, out_channels1, kernel_size=kernel_size2, bias=bias)
         self.conv_transpose2 = nn.ConvTranspose2d(out_channels1, in_channels1, kernel_size=kernel_size1, bias=bias)
         #appling Leakyrelu as activation function as it is more useful in activating neurons than ReLU
@@ -215,7 +300,7 @@ class CVAE_ex(nn.Module):
         return x_recon, z_mean, z_logvar
 
 '''
-This model is based on reasearch paper included in README
+This model is based on reaserch paper and all of the information regarding this is included in readme file 
 '''
 
 class Encoder1(nn.Module):
@@ -258,7 +343,7 @@ class Encoder2(nn.Module):
         self.fc_input_size = self.conv_output_size + self.cond_dim
         
         # Define the fully connected layers
-        self.fc1 = nn.Linear(self.fc_input_size, 100)  # Example dimension from the diagram
+        self.fc1 = nn.Linear(self.fc_input_size, 100)  # Example dimension from the diagram given in the research paper 
         self.fc2_mean = nn.Linear(100, latent_dim)
         self.fc2_logvar = nn.Linear(100, latent_dim)
 
@@ -307,7 +392,7 @@ class Decoder(nn.Module):
         x = torch.cat([z, cond], dim=1)
         x = F.relu(self.fc1(x))
         batch_size, latent_dim = z.size()
-        
+        ## reshaping the data
         x = torch.reshape(x, (batch_size, out_channels2, dimInt, 1))  # Reshape to (batch_size, channels, height, width)
         
         x = self.conv_transpose1(x)
@@ -321,17 +406,20 @@ class Decoder(nn.Module):
 class CVAE_re(nn.Module):
     def __init__(self,latent_dim = 8):
         super(CVAE_re, self).__init__()
-        
+        #passing input through encoder and decoder 
         self.encoder1 = Encoder1(latent_dim)
         self.encoder2 = Encoder2(latent_dim)
         self.sampling = Sampling()
         self.decoder = Decoder(latent_dim)
 
     def forward(self, x, cond):
+        #extracting the different means and log variance each encoder 
         z_mean1, z_logvar1 = self.encoder1(cond)
         z_mean2, z_logvar2 = self.encoder2(x, cond)
+
         z1 = self.sampling(z_mean1, z_logvar1)
         z2 = self.sampling(z_mean2, z_logvar2)
+        #reconstructed x will be reconstruced only through second encoder  
         x_recon = self.decoder(z2, cond)
         return x_recon, z_mean1, z_logvar1, z_mean2, z_logvar2
     
