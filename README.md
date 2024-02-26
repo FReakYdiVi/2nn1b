@@ -101,7 +101,7 @@ If you want to know more about the structure , you can go through this [reaserch
 
 The following table provides a comparison of four types of loss across our three models:
 
-For Data_1:
+For Data_2:
 
 | Results            | Reconstruction Error 0 | Reconstruction Error 1 | Linearity Score 0 | Linearity Score 1 |
 |-----------------------|------------------------|------------------------|--------------------|--------------------|
@@ -111,7 +111,7 @@ For Data_1:
 | 4     |1.0123666524887085                       | 0.7670043706893921                      | 0.5854454046035665                 | 0.5289340156171182                 |  
 | 5     |1.0218342542648315 | 0.7545475363731384 | 0.5626903763526705  | 0.5523329465236612 |
 
-For Data_2:
+For Data_1:
 
 | Model Name            | Reconstruction Error 0 | Reconstruction Error 1 | Linearity Score 0 | Linearity Score 1 |
 |-----------------------|------------------------|------------------------|--------------------|--------------------|
